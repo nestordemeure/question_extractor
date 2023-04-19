@@ -8,11 +8,24 @@ This repository lets you use a non-fine-tuned language model and existing textua
 
 ## Installation
 
-TODO
+To run this code, you will need the following python packages:
+
+* `tiktoken`, the OpenAI tokeniser
+* `openai`, the official OpenAI API client
+* `langchain`, glue code used to combine models and utilities together
 
 ## Usage
 
-TODO
+This script is design to turn a folder of markdown documents into a json file containing a list of questions, answers and paths to the source documents that was used to produce them.
+
+To run the code, set the relevant file paths in the `question_extractor.py` file (both the input folder and the output path) and insure that your [OpenAI API key](https://platform.openai.com/account/api-keys) is in the environment.
+Then run the script with python:
+
+```
+python3 question_extractor.py
+```
+
+Once it is done, all questions/answers will be written as a json file in the output path.
 
 ## Inner-workings
 
