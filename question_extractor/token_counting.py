@@ -1,5 +1,5 @@
 import tiktoken
-from .prompts import answering_system_prompt, extraction_system_prompt, generate_answering_messages, generate_extraction_messages
+from .prompts import generate_answering_messages, generate_extraction_messages
 
 #----------------------------------------------------------------------------------------
 # COUNTING
