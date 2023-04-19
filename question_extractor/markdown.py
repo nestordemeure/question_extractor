@@ -6,7 +6,6 @@ def import_markdown_files(directory):
     Returns a list of (file_path, text) for all markdown files in the input folder.
     """
     files_data = []
-    
     for root, dirs, files in os.walk(directory):
         for file_name in files:
             if file_name.endswith('.md'):
