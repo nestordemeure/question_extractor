@@ -45,8 +45,8 @@ Most of the actual logic of the code is dedicated to processing the files concur
 
 If a text is too long to be sent to the model, it is split along its highest markdown heading level (the process can be repeated recursively if needed until we get down to single paragraphs).
 
-Performance-wise, this script can process [the full NERSC documentation](https://gitlab.com/NERSC/nersc.gitlab.io/-/tree/main/docs) in 6 minutes.
-Turning 318 markdown files into 8005 questions[^rate] for $29.
+Performance-wise, this script can process [the full NERSC documentation](https://gitlab.com/NERSC/nersc.gitlab.io/-/tree/main/docs) in 6 minutes[^rate].
+Turning 318 markdown files into 8005 questions for $29.
 
 [^rate]: About 93% of the model's rate limit.
 
