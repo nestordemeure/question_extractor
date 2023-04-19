@@ -1,82 +1,144 @@
 import re
 import asyncio
 from langchain.chat_models import ChatOpenAI
-from .markdown import import_markdown_files, split_markdown
-from .token_counting import count_tokens_text, count_tokens_messages, count_tokens_left, has_tokens_left
-from .prompts import generate_answering_messages, generate_extraction_messages
+from .markdown import load_markdown_files_from_directory, split_markdown
+from .token_counting import count_tokens_text, count_tokens_messages, get_available_tokens, are_tokens_available_for_both_conversations
+from .prompts import create_answering_conversation_messages, create_extraction_conversation_messages
 
 #---------------------------------------------------------------------------------------------
 # QUESTION PROCESSING
 
-def flatten_lists(nested_lists):
+def flatten_nested_lists(nested_lists):
     """
-    Flattens a list of lists
+    Takes a list of lists as input and returns a flattened list containing all elements.
+    
+    Args:
+        nested_lists (list of lists): A list containing one or more sublists.
+
+    Returns:
+        list: A flattened list containing all elements from the input nested lists.
     """
-    result = []
-    for l in nested_lists:
-        result.extend(l)
-    return result
+    flattened_list = []
+
+    # Iterate through the nested lists and add each element to the flattened_list
+    for sublist in nested_lists:
+        flattened_list.extend(sublist)
+
+    return flattened_list
+
 
 async def run_model(messages):
     """
-    Runs the model, with as many token as possible, on the given messages
-    """
-    # we use as many tokens as possible
-    nb_tokens_messages = count_tokens_messages(messages)
-    nb_tokens_available = count_tokens_left(nb_tokens_messages)
-    # temperature set to zero to minimise imagination
-    model = ChatOpenAI(temperature=0.0, max_tokens=nb_tokens_available)
-    # runs the model asyncrhonously
-    # by default this is set to process a list of inputs
-    output = await model.agenerate([messages])
-    return output.generations[0][0].text.strip()
+    Asynchronously runs the chat model with as many tokens as possible on the given messages.
+    
+    Args:
+        messages (list): A list of input messages to be processed by the model.
 
-def questions_of_output(output):
+    Returns:
+        str: The model-generated output text after processing the input messages.
     """
-    takes a numebred list of question as a string
-    returns them as a list of string
-    the input might have prefixes / suffixes that are not questions or incomplete questions.
+    # Count the number of tokens in the input messages
+    num_tokens_in_messages = count_tokens_messages(messages)
+
+    # Calculate the number of tokens available for processing
+    num_tokens_available = get_available_tokens(num_tokens_in_messages)
+
+    # Create an instance of the ChatOpenAI model with minimum imagination (temperature set to 0)
+    model = ChatOpenAI(temperature=0.0, max_tokens=num_tokens_available)
+
+    # Asynchronously run the model on the input messages
+    # by default it is set to process a list of inputs
+    output = await model.agenerate([messages])
+
+    # Extract and return the generated text from the model output
+    generated_text = output.generations[0][0].text.strip()
+    return generated_text
+
+
+def extract_questions_from_output(output):
     """
-    # a question is a line starting with a number followed by a dot and a space
+    Takes a numbered list of questions as a string and returns them as a list of strings.
+    The input might have prefixes/suffixes that are not questions or incomplete questions.
+
+    Args:
+        output (str): A string containing a numbered list of questions.
+
+    Returns:
+        list of str: A list of extracted questions as strings.
+    """
+    # Define a regex pattern to match questions (lines starting with a number followed by a dot and a space)
     question_pattern = re.compile(r"^\s*\d+\.\s*(.+)$", re.MULTILINE)
+
+    # Find all the questions matching the pattern in the input text
     questions = question_pattern.findall(output)
-    # ignores the last questions if it does not end with punctuation
+
+    # Check if the last question is incomplete (does not end with punctuation)
     if (len(questions) > 0) and (not re.search(r"[.!?]$", questions[-1])):
         print(f"WARNING: Popping incomplete question: '{questions[-1]}'")
         questions.pop()
+
     return questions
 
-async def extract_questions(file_path, text):
-    # insures that we can run the model on the text
+
+async def extract_questions_from_text(file_path, text):
+    """
+    Asynchronously extracts questions from the given text.
+    
+    Args:
+        file_path (str): The file path of the markdown file.
+        text (str): The text content of the markdown file.
+
+    Returns:
+        list of tuple: A list of tuples, each containing the file path, text, and extracted question.
+    """
+    # Ensure the text can be processed by the model
     text = text.strip()
-    nb_tokens_text = count_tokens_text(text)
-    if not has_tokens_left(nb_tokens_text):
-        # split text and call function recurcively
+    num_tokens_text = count_tokens_text(text)
+
+    if not are_tokens_available_for_both_conversations(num_tokens_text):
+        # Split text and call function recursively
         print(f"WARNING: Splitting '{file_path}' into smaller chunks.")
-        # builds all tasks and runs them
+
+        # Build tasks for each subsection of the text
         tasks = []
-        for sub_title,sub_text in split_markdown(text):
+        for sub_title, sub_text in split_markdown(text):
             sub_file_path = file_path + '/' + sub_title.replace('# ', '#').replace(' ', '-').lower()
-            task = extract_questions(sub_file_path, sub_text)
+            task = extract_questions_from_text(sub_file_path, sub_text)
             tasks.append(task)
+
+        # Asynchronously run tasks and gather outputs
         tasks_outputs = await asyncio.gather(*tasks)
-        # flattens results
-        return flatten_lists(tasks_outputs)
+
+        # Flatten and return the results
+        return flatten_nested_lists(tasks_outputs)
     else:
-        # run model
-        messages = generate_extraction_messages(text)
+        # Run the model to extract questions
+        messages = create_extraction_conversation_messages(text)
         output = await run_model(messages)
-        questions = questions_of_output(output)
-        # zip questions with source information
+        questions = extract_questions_from_output(output)
+
+        # Associate questions with source information and return as a list of tuples
         outputs = [(file_path, text, question.strip()) for question in questions]
         return outputs
 
-async def answer_question(question, source):
+
+async def generate_answer(question, source):
     """
-    Answers a question given a text containing the relevant information.
+    Asynchronously generates an answer to a given question using the provided source text.
+    
+    Args:
+        question (str): The question to be answered.
+        source (str): The text containing relevant information for answering the question.
+
+    Returns:
+        str: The generated answer to the question.
     """
-    messages = generate_answering_messages(question, source)
+    # Create the input messages for the chat model
+    messages = create_answering_conversation_messages(question, source)
+
+    # Asynchronously run the chat model with the input messages
     answer = await run_model(messages)
+
     return answer
 
 #---------------------------------------------------------------------------------------------
@@ -84,60 +146,89 @@ async def answer_question(question, source):
 
 async def process_file(file_path, text, progress_counter, verbose=True):
     """
-    Extracts all questions from a file.
-    Runs question answering on all questions concurently.
-    Returns merged results.
+    Asynchronously processes a file, extracting questions and generating answers concurrently.
+    
+    Args:
+        file_path (str): The file path of the markdown file.
+        text (str): The text content of the markdown file.
+        progress_counter (dict): A dictionary containing progress information ('nb_files_done' and 'nb_files').
+        verbose (bool): If True, print progress information. Default is True.
+
+    Returns:
+        list: A list of dictionaries containing source, question, and answer information.
     """
-    # extracts the questions
-    questions = await extract_questions(file_path, text)
-    # build all answering tasks and runs them
+    # Extract questions from the text
+    questions = await extract_questions_from_text(file_path, text)
+
+    # Build and run answering tasks concurrently
     tasks = []
     for sub_file_path, sub_text, question in questions:
-        task = answer_question(question, sub_text)
+        task = generate_answer(question, sub_text)
         tasks.append(task)
+
     tasks_outputs = await asyncio.gather(*tasks)
-    # merge results
+
+    # Merge results into a list of dictionaries
     result = []
     for (sub_file_path, sub_text, question), answer in zip(questions, tasks_outputs):
-        result.append({'source':sub_file_path, 'question':question, 'answer':answer})
-        #if verbose: print(f"Q: {question}\n\nA: {answer}\n")
-    # display
-    progress_counter['nb_files_done'] += 1 # no race condition as we are single threaded
-    if verbose: 
+        result.append({'source': sub_file_path, 'question': question, 'answer': answer})
+
+    # Update progress and display information if verbose is True
+    progress_counter['nb_files_done'] += 1  # No race condition as we are single-threaded
+    if verbose:
         print(f"{progress_counter['nb_files_done']}/{progress_counter['nb_files']}: File '{file_path}' done!")
+
     return result
+
 
 async def process_files(files, verbose=True):
     """
-    Runs question extraction on all files concurently.
-    Returns merged results
+    Asynchronously processes a list of files, extracting questions and generating answers concurrently.
+    
+    Args:
+        files (list): A list of tuples containing file paths and their respective text content.
+        verbose (bool): If True, print progress information. Default is True.
+
+    Returns:
+        list: A merged list of dictionaries containing source, question, and answer information.
     """
-    # used to display progress information
+    # Set up progress information for display
     nb_files = len(files)
+    progress_counter = {'nb_files': nb_files, 'nb_files_done': 0}
     if verbose: print(f"Starting question extraction on {nb_files} files.")
-    progress_counter = {'nb_files':nb_files, 'nb_files_done': 0}
-    # build all file tasks and runs them
+
+    # Build and run tasks for each file concurrently
     tasks = []
     for file_path, text in files:
         task = process_file(file_path, text, progress_counter, verbose=verbose)
         tasks.append(task)
+
     tasks_outputs = await asyncio.gather(*tasks)
-    # merges results
-    return flatten_lists(tasks_outputs)
+
+    # Merge results from all tasks
+    return flatten_nested_lists(tasks_outputs)
 
 #---------------------------------------------------------------------------------------------
 # MAIN
 
-def question_extractor(input_folder, verbose=True):
+def extract_questions_from_directory(input_folder, verbose=True):
     """
-    Takes a path to a folder as input.
-    Returns a list of {path, source, question, answer}
+    Extracts questions and answers from all markdown files in the input folder.
+
+    Args:
+        input_folder (str): A path to a folder containing markdown files.
+        verbose (bool): If True, print progress information. Default is True.
+
+    Returns:
+        list: A list of dictionaries containing path, source, question, and answer information.
     """
-    # load inputs
+    # Load input files from the folder
     if verbose: print(f"Loading files from '{input_folder}'.")
-    files = import_markdown_files(input_folder)
-    # runs question extraction tasks
+    files = load_markdown_files_from_directory(input_folder)
+
+    # Run question extraction tasks
     loop = asyncio.get_event_loop()
-    result = loop.run_until_complete(process_files(files, verbose=verbose))
-    if verbose: print(f"Done, {len(result)} question/answer pairs have been generated!")
-    return result
+    results = loop.run_until_complete(process_files(files, verbose=verbose))
+
+    if verbose: print(f"Done, {len(results)} question/answer pairs have been generated!")
+    return results
