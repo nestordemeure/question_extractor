@@ -11,8 +11,10 @@ def run_model(messages):
     """
     Runs the model, with as many token as possible, on the given messages
     """
+    # we use as many tokens as possible
     nb_tokens_messages = count_tokens_messages(messages)
     nb_tokens_available = count_tokens_left(nb_tokens_messages)
+    # temperature set to zero to minimise imagination
     model = ChatOpenAI(temperature=0.0, max_tokens=nb_tokens_available)
     output = model(messages).content.strip()
     return output
@@ -28,7 +30,7 @@ def questions_of_output(output):
     questions = question_pattern.findall(output)
     # ignores the last questions if it does not end with punctuation
     if (len(questions) > 0) and (not re.search(r"[.!?]$", questions[-1])):
-        print(f"Popping incomplete question: '{questions[-1]}'")
+        print(f"WARNING: Popping incomplete question: '{questions[-1]}'")
         questions.pop()
     return questions
 
@@ -38,7 +40,7 @@ def extract_questions(file_path, text):
     nb_tokens_text = count_tokens_text(text)
     if not has_tokens_left(nb_tokens_text):
         # split text and call function recurcively
-        print(f"Splitting '{file_path}' into smaller chunks.")
+        print(f"WARNING: Splitting '{file_path}' into smaller chunks.")
         outputs = []
         for sub_title,sub_text in split_markdown(text):
             sub_file_path = file_path + '/' + sub_title.replace('# ', '#').replace(' ', '-').lower()
@@ -80,5 +82,5 @@ def question_extractor(input_folder, verbose=True):
         for sub_file_path, source, question in questions:
             answer = answer_question(question, source)
             result.append({'path':sub_file_path, 'source':source, 'question':question, 'answer':answer})
-            if verbose: print(f"Q: {question}\nA: {answer}\n")
+            if verbose: print(f"Q: {question}\n\nA: {answer}\n")
     return result

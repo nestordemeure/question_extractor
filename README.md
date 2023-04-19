@@ -19,6 +19,7 @@ TODO
 
 # TODO
 
-- write basic documentation in readme
 - paralelise the code with async?
+- write basic documentation in readme
+- update function documentation
 - run on [full NERSC doc](https://gitlab.com/NERSC/nersc.gitlab.io/-/tree/main/docs)
