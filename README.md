@@ -17,11 +17,8 @@ TODO
 
 TODO
 
-## Demo
-
-For our demo, we will use part of the NERSC documentation stored in markdown format [here](https://gitlab.com/NERSC/nersc.gitlab.io/-/tree/main/docs).
-
 # TODO
 
-- write basic documentations on readme
+- write basic documentation in readme
 - paralelise the code with async?
+- run on [full NERSC doc](https://gitlab.com/NERSC/nersc.gitlab.io/-/tree/main/docs)

@@ -1,5 +1,4 @@
 import re
-import json
 from langchain.chat_models import ChatOpenAI
 from .markdown import import_markdown_files, split_markdown
 from .token_counting import count_tokens_text, count_tokens_messages, count_tokens_left, has_tokens_left
@@ -55,11 +54,11 @@ def extract_questions(file_path, text):
         outputs = [(file_path, text, question.strip()) for question in questions]
         return outputs
 
-def answer_question(question, text):
+def answer_question(question, source):
     """
     Answers a question given a text containing the relevant information.
     """
-    messages = generate_answering_messages(question, text)
+    messages = generate_answering_messages(question, source)
     answer = run_model(messages)
     return answer
 
@@ -73,12 +72,13 @@ def question_extractor(input_folder, verbose=True):
     """
     # load inputs
     files = import_markdown_files(input_folder)
-    # runs the model on all files
+    # extracts questions for all files
     result = []
     for file_path, text in files:
         questions = extract_questions(file_path, text)
-        for sub_file_path, sub_text, question in questions:
-            answer = answer_question(question, sub_text)
-            result.append({'path':sub_file_path, 'source':sub_text, 'question':question, 'answer':answer})
+        # answer all questions
+        for sub_file_path, source, question in questions:
+            answer = answer_question(question, source)
+            result.append({'path':sub_file_path, 'source':source, 'question':question, 'answer':answer})
             if verbose: print(f"Q: {question}\nA: {answer}\n")
     return result

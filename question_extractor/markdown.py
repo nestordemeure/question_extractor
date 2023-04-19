@@ -45,7 +45,7 @@ def split_markdown(text):
     highest_heading_level = find_highest_heading_level(lines)
     if highest_heading_level is None:
         # there are no headings to be splitted at
-        # TODO use an alternative splitting method
+        # FIXME if this is ever triggered, introduce an alternative splitting method
         print(f"Giving up on a piece of text that is too long for processing:\n```\n{text}\n```")
         return []
     headings_prefix = ("#" * highest_heading_level) + " "
