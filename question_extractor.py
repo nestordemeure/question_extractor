@@ -100,7 +100,7 @@ model_token_limit=4096
 model_tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
 model_tokens_per_name = -1  # if there's a name, the role is omitted
 
-def messages_of_text(text):
+def extraction_messages_of_text(text):
     """
     Takes a piece of text and returns a list of messages designed to extracts questions from the text.
     """
@@ -126,7 +126,7 @@ def compute_nb_tokens(text, messages):
     nb_token_messages += 3  # every reply is primed with <|start|>assistant<|message|>
     return nb_tokens_text, nb_token_messages
 
-def compute_nb_tokens_answer(nb_tokens_text, nb_token_messages):
+def compute_nb_tokens_answer_extraction(nb_tokens_text, nb_token_messages):
     """
     Takes information on the size fo the text and messages.
     Returns None if there are not enough tokens left to answer.
@@ -175,10 +175,10 @@ def questions_of_answer(answer):
 def extract_questions(file_name, file_path, text):
     # messages that will be sent to the model
     text = text.strip()
-    messages = messages_of_text(text)
+    messages = extraction_messages_of_text(text)
     # make sur we have enough tokens left to get an answer from the model
     nb_tokens_text, nb_token_messages = compute_nb_tokens(text, messages)
-    nb_tokens_answer = compute_nb_tokens_answer(nb_tokens_text, nb_token_messages)
+    nb_tokens_answer = compute_nb_tokens_answer_extraction(nb_tokens_text, nb_token_messages)
     if nb_tokens_answer is None:
         # split text and call function recurcively
         print(f"Splitting '{file_path}' into smaller chunks.")
@@ -198,14 +198,66 @@ def extract_questions(file_name, file_path, text):
     return outputs
     
 #----------------------------------------------------------------------------------------
+# QUESTION ANSWERING
+
+def answering_messages_of_text(question, text):
+    """
+    Takes a piece of text and returns a list of messages designed to extracts questions from the text.
+    """
+    system_prompt="You are an expert user answering questions. You will be passed a page extracted from a documentation and a question. Generate a comprehensive and informative answer to the question based *solely* on the given text."
+    system_message = SystemMessage(content=system_prompt)
+    human_message_text = HumanMessage(content=text)
+    human_message_question = HumanMessage(content=question)
+    return [system_message, human_message_text, human_message_question]
+
+def compute_nb_tokens_answer_answering(nb_token_messages):
+    """
+    Takes information on the size of the messages.
+    Returns the number of tokens that can be requested from the model.
+    """
+    lower_bound_token_limit = model_token_limit - 16 # we avoid asking for the token limit
+    nb_tokens_answer = lower_bound_token_limit - nb_token_messages
+    return nb_tokens_answer
+
+def answer_question(question, text):
+    """
+    Answers a question given a text containing the relevant information.
+    """
+    # messages that will be sent to the model
+    messages = answering_messages_of_text(question, text)
+    # make sur we have enough tokens left to get an answer from the model
+    nb_tokens_text, nb_token_messages = compute_nb_tokens(text, messages)
+    nb_tokens_answer = compute_nb_tokens_answer_answering(nb_token_messages)
+    # runs the model
+    model = ChatOpenAI(temperature=0.0, max_tokens=nb_tokens_answer)
+    answer = model(messages).content.strip()
+    return answer
+
+#----------------------------------------------------------------------------------------
 # PROCESS ALL INPUTS
 
 # runs the model on all files
-questions = []
+result = []
 for file_name, file_path, text in inputs:
     file_questions = extract_questions(file_name, file_path, text)
-    questions.extend(file_questions)
+    for (file_name, file_path, text, question) in file_questions:
+        answer = answer_question(question, text)
+        result.append((file_name, file_path, text, question, answer))
+        # display
+        print()
+        print(f"[{len(result)}] {file_path}")
+        print(f"Q: {question}")
+        print(f"A: {answer}")
+        print()
 
-# displays our outputs
-for i,(file_name, file_path, text, question) in enumerate(questions):
-    print(f"[{i}] {file_path}: {question}")
+"""
+To see if we need to split in order to fit a full answer:
+
+what is the average answer size?
+
+size of answering message with empty question
++ size averge question
++ size average answer * 1.5
+
+still fits?
+"""
