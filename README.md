@@ -4,7 +4,7 @@ Large language models can be instruction tuned with a set of questions and answe
 However, to further fine-tune a model *on your own data*, you need a large number of questions and answers about your data.
 Producing those questions and answers can be a lot of manual work.
 
-This repository lets you use a non-fine-tuned language model to extract question/answer pairs automatically from existing textual data, eliminating all manual work.
+This repository lets you use a non-fine-tuned language model (ChatGPT) to extract question/answer pairs automatically from existing textual data, eliminating all manual work.
 
 ## Installation
 
@@ -52,6 +52,6 @@ Turning 318 markdown files into 8005 questions for $29.
 
 ## Potential improvements
 
+- make it possible to use GPT4 for the question answering, improving the quality of the answers at the cost of a slower runtime and significantly increased costs
 - save intermediate results to be able to restart an interrupted job
 - use the OpenAI client directly, instead of Langchain, to reduce dependencies
-- make it possible to use GPT4 for the question answering, improving the quality of the answers at the cost of a slower runtime and significantly increased running costs
