@@ -46,28 +46,29 @@ async def run_model(messages, max_retry=6):
     num_tokens_available = get_available_tokens(num_tokens_in_messages)
 
     # Create an instance of the ChatOpenAI model with minimum imagination (temperature set to 0)
-    model = ChatOpenAI(temperature=0.0, max_tokens=num_tokens_available)
+    model = ChatOpenAI(temperature=0.0, max_tokens=num_tokens_available, max_retries=0)
 
-    # Retries until twe suceed
+    # Retries until we succeed
     generated_text = None
     for i in range(max_retry):
         try:
             # Asynchronously run the model on the input messages
             # by default it is set to process a list of inputs
-            output = await model.agenerate([messages])
+            output = await model._agenerate(messages)
             # Extract and return the generated text from the model output
-            generated_text = output.generations[0][0].text.strip()
+            generated_text = output.generations[0].text.strip()
             break
-        except openai.error.Timeout as e:
+        except (asyncio.TimeoutError, openai.error.Timeout, openai.error.RateLimitError) as e:
             # Wait before retrying
+            # the wait will purposefully impact *all* concurent tasks
             retry_delay = int(2**i)
             print(f"WARNING: Timeout, retrying in {retry_delay} seconds.")
             time.sleep(retry_delay)
     
     # Uses a dummy text in case of complete failure
     if generated_text is None:
-        print(f"WARNING: Could not generate text for an input.")
-        generated_text = 'NA'
+        print(f"ERROR: Could not generate text for an input.")
+        generated_text = 'ERROR'
     return generated_text
 
 
@@ -88,8 +89,8 @@ def extract_questions_from_output(output):
     # Find all the questions matching the pattern in the input text
     questions = question_pattern.findall(output)
 
-    # Check if the last question is incomplete (does not end with punctuation)
-    if (len(questions) > 0) and (not re.search(r"[.!?]$", questions[-1])):
+    # Check if the last question is incomplete (does not end with punctuation or a parenthesis)
+    if (len(questions) > 0) and (not re.search(r"[.!?)]$", questions[-1].strip())):
         print(f"WARNING: Popping incomplete question: '{questions[-1]}'")
         questions.pop()
 
