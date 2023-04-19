@@ -29,12 +29,13 @@ def flatten_nested_lists(nested_lists):
     return flattened_list
 
 
-async def run_model(messages, max_retry=6):
+async def run_model(messages, max_retry=7):
     """
     Asynchronously runs the chat model with as many tokens as possible on the given messages.
     
     Args:
         messages (list): A list of input messages to be processed by the model.
+        max_retry (int): Maximum number of retires before we give up on call the API, defaults to 7.
 
     Returns:
         str: The model-generated output text after processing the input messages.
@@ -49,15 +50,13 @@ async def run_model(messages, max_retry=6):
     model = ChatOpenAI(temperature=0.0, max_tokens=num_tokens_available, max_retries=0)
 
     # Retries until we succeed
-    generated_text = None
     for i in range(max_retry):
         try:
             # Asynchronously run the model on the input messages
             # by default it is set to process a list of inputs
             output = await model._agenerate(messages)
             # Extract and return the generated text from the model output
-            generated_text = output.generations[0].text.strip()
-            break
+            return output.generations[0].text.strip()
         except (asyncio.TimeoutError, openai.error.Timeout, openai.error.RateLimitError) as e:
             # Wait before retrying
             # the wait will purposefully impact *all* concurent tasks
@@ -66,10 +65,8 @@ async def run_model(messages, max_retry=6):
             time.sleep(retry_delay)
     
     # Uses a dummy text in case of complete failure
-    if generated_text is None:
-        print(f"ERROR: Could not generate text for an input.")
-        generated_text = 'ERROR'
-    return generated_text
+    print(f"ERROR: Could not generate text for an input.")
+    return 'ERROR'
 
 
 def extract_questions_from_output(output):
