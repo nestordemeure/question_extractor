@@ -32,7 +32,7 @@ Once it is done, all questions/answers will be written as a `.json` file in the 
 The code loops on all files, for each file it extracts a list of questions using the following prompt followed by a chunk of text:
 
 ```
-You are an expert user extracting information to quizz people on documentation. You will be passed a page extracted from the documentation, write a numbered list of questions that can be answered based *solely* on the given text.
+You are an expert user extracting information to quiz people on documentation. You will be passed a page extracted from the documentation, write a numbered list of questions that can be answered based *solely* on the given text.
 ```
 
 It then loops on the questions, producing an answer by passing the following prompt followed by a chunk of text and a question:
