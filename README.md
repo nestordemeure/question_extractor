@@ -23,8 +23,5 @@ For our demo, we will use part of the NERSC documentation stored in markdown for
 
 # TODO
 
-- introduce answering size into the splitting logic
 - write basic documentations on readme
-- convert result tuple into dict
-- reorganise code into separate files
 - paralelise the code with async?
