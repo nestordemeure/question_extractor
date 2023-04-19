@@ -8,7 +8,7 @@ This repository lets you use a non-fine-tuned language model to extract question
 
 ## Installation
 
-To run this code, you will need the following Python packages:
+To run this code, you will need to clone this repository then install the following Python packages:
 
 * `tiktoken`, the OpenAI tokeniser,
 * `openai`, the official OpenAI API client,
