@@ -1,5 +1,7 @@
 import re
+import time
 import asyncio
+import openai
 from langchain.chat_models import ChatOpenAI
 from .markdown import load_markdown_files_from_directory, split_markdown
 from .token_counting import count_tokens_text, count_tokens_messages, get_available_tokens, are_tokens_available_for_both_conversations
@@ -27,7 +29,7 @@ def flatten_nested_lists(nested_lists):
     return flattened_list
 
 
-async def run_model(messages):
+async def run_model(messages, max_retry=6):
     """
     Asynchronously runs the chat model with as many tokens as possible on the given messages.
     
@@ -46,12 +48,26 @@ async def run_model(messages):
     # Create an instance of the ChatOpenAI model with minimum imagination (temperature set to 0)
     model = ChatOpenAI(temperature=0.0, max_tokens=num_tokens_available)
 
-    # Asynchronously run the model on the input messages
-    # by default it is set to process a list of inputs
-    output = await model.agenerate([messages])
-
-    # Extract and return the generated text from the model output
-    generated_text = output.generations[0][0].text.strip()
+    # Retries until twe suceed
+    generated_text = None
+    for i in range(max_retry):
+        try:
+            # Asynchronously run the model on the input messages
+            # by default it is set to process a list of inputs
+            output = await model.agenerate([messages])
+            # Extract and return the generated text from the model output
+            generated_text = output.generations[0][0].text.strip()
+            break
+        except openai.error.Timeout as e:
+            # Wait before retrying
+            retry_delay = int(2**i)
+            print(f"WARNING: Timeout, retrying in {retry_delay} seconds.")
+            time.sleep(retry_delay)
+    
+    # Uses a dummy text in case of complete failure
+    if generated_text is None:
+        print(f"WARNING: Could not generate text for an input.")
+        generated_text = 'NA'
     return generated_text
 
 
