@@ -1,4 +1,4 @@
-# Question Extractor
+# Question Extractor 🧐
 
 Large language models can be instruction tuned with a set of questions and answers.
 However, to further fine-tune a model *on your own data*, you need a large number of questions and answers about your data.
