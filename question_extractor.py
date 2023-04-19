@@ -209,27 +209,3 @@ for file_name, file_path, text in inputs:
 # displays our outputs
 for i,(file_name, file_path, text, question) in enumerate(questions):
     print(f"[{i}] {file_path}: {question}")
-
-#----------------------------------------------------------------------------------------
-# DATA GATHERING
-
-encoding = tiktoken.encoding_for_model(model_type)
-
-nb_questions = len(questions)
-texts = set()
-total_question_size = 0
-for i, (file_name, file_path, text, question) in enumerate(questions):
-    question = f"{i}. {question}"
-    question_size = len(encoding.encode(question))
-    total_question_size += question_size
-    texts.add(text)
-
-nb_texts = len(texts)
-total_texts_size = 0
-for text in texts:
-    text_size = len(encoding.encode(text))
-    total_texts_size += text_size
-
-print(f"nb_questions:{nb_questions} total_question_size:{total_question_size} nb_texts:{nb_texts} total_texts_size:{total_texts_size}")
-print(f"average question size:{total_question_size / nb_questions}")
-print(f"ratio question/text:{total_question_size/total_texts_size}")
