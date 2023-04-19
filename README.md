@@ -45,12 +45,11 @@ Most of the actual logic of the code is dedicated to processing the files concur
 
 If a text is too long to be sent to the model, it is split along its highest markdown heading level (the process can be repeated recursively if needed until we get down to single paragraphs).
 
-Performance-wise, this script can process [the full NERSC documentation](https://gitlab.com/NERSC/nersc.gitlab.io/-/tree/main/docs) in 809s.
+Performance-wise, this script can process [the full NERSC documentation](https://gitlab.com/NERSC/nersc.gitlab.io/-/tree/main/docs) in 6 minutes.
 Turning 318 markdown files into 8005 questions for $29.
 
 ## Potential improvements
 
-- introduce proper [throttling](https://github.com/openai/openai-cookbook/blob/main/examples/api_request_parallel_processor.py) to reduce timeout errors / avoid hitting rate limits
 - save intermediate results to be able to restart an interrupted job
 - use the OpenAI client directly, instead of Langchain, to reduce dependencies
 - make it possible to use GPT4 for the question answering, improving the quality of the answers at the cost of a slower runtime and significantly increased running costs

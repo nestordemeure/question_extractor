@@ -1,5 +1,4 @@
 import re
-import time
 import asyncio
 import openai
 from langchain.chat_models import ChatOpenAI
@@ -9,6 +8,12 @@ from .prompts import create_answering_conversation_messages, create_extraction_c
 
 #---------------------------------------------------------------------------------------------
 # QUESTION PROCESSING
+
+# Ensure we do not run too many concurent requests
+model_rate_limits = 1500
+max_concurent_request = int(model_rate_limits * 0.75)
+throttler = asyncio.Semaphore(max_concurent_request)
+
 
 def flatten_nested_lists(nested_lists):
     """
@@ -29,13 +34,12 @@ def flatten_nested_lists(nested_lists):
     return flattened_list
 
 
-async def run_model(messages, max_retry=7):
+async def run_model(messages):
     """
     Asynchronously runs the chat model with as many tokens as possible on the given messages.
     
     Args:
         messages (list): A list of input messages to be processed by the model.
-        max_retry (int): Maximum number of retires before we give up on call the API, defaults to 7.
 
     Returns:
         str: The model-generated output text after processing the input messages.
@@ -47,26 +51,19 @@ async def run_model(messages, max_retry=7):
     num_tokens_available = get_available_tokens(num_tokens_in_messages)
 
     # Create an instance of the ChatOpenAI model with minimum imagination (temperature set to 0)
-    model = ChatOpenAI(temperature=0.0, max_tokens=num_tokens_available, max_retries=0)
+    model = ChatOpenAI(temperature=0.0, max_tokens=num_tokens_available)
 
-    # Retries until we succeed
-    for i in range(max_retry):
-        try:
+    try:
+        # Use a semaphore to limit the number of simultaneous calls
+        async with throttler:
             # Asynchronously run the model on the input messages
-            # by default it is set to process a list of inputs
             output = await model._agenerate(messages)
-            # Extract and return the generated text from the model output
-            return output.generations[0].text.strip()
-        except (asyncio.TimeoutError, openai.error.Timeout, openai.error.RateLimitError) as e:
-            # Wait before retrying
-            # the wait will purposefully impact *all* concurent tasks
-            retry_delay = int(2**i)
-            print(f"WARNING: Timeout, retrying in {retry_delay} seconds.")
-            time.sleep(retry_delay)
-    
-    # Uses a dummy text in case of complete failure
-    print(f"ERROR: Could not generate text for an input.")
-    return 'ERROR'
+        # Extract and return the generated text from the model output
+        return output.generations[0].text.strip()
+    except (asyncio.TimeoutError, openai.error.Timeout, openai.error.RateLimitError) as e:
+        # Uses a dummy text in case of complete failure
+        print(f"ERROR: Could not generate text for an input.")
+        return 'ERROR'
 
 
 def extract_questions_from_output(output):
