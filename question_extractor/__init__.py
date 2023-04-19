@@ -79,8 +79,8 @@ def question_extractor(input_folder, verbose=True):
     for file_path, text in files:
         questions = extract_questions(file_path, text)
         # answer all questions
-        for sub_file_path, source, question in questions:
-            answer = answer_question(question, source)
-            result.append({'path':sub_file_path, 'source':source, 'question':question, 'answer':answer})
+        for sub_file_path, sub_text, question in questions:
+            answer = answer_question(question, sub_text)
+            result.append({'source':sub_file_path, 'question':question, 'answer':answer})
             if verbose: print(f"Q: {question}\n\nA: {answer}\n")
     return result

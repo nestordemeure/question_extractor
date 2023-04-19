@@ -5,7 +5,7 @@ However, to further fine-tune a model *on your own data*, you need a large numbe
 
 This repository lets you use a non-fine-tuned language model and existing textual data to extract question/answer pairs automatically, eliminating all manual work.
 
-## Instalation
+## Installation
 
 TODO
 
@@ -17,9 +17,10 @@ TODO
 
 TODO
 
-# TODO
+# Potential improvement
 
-- paralelise the code with async?
+- parallelize the code with async?
 - write basic documentation in readme
 - update function documentation
 - run on [full NERSC doc](https://gitlab.com/NERSC/nersc.gitlab.io/-/tree/main/docs)
+- use straight OpenAI API instead of langchain to simplify installation
