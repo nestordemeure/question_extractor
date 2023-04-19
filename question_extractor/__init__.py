@@ -58,13 +58,13 @@ async def run_model(messages):
         async with throttler:
             # Asynchronously run the model on the input messages
             output = await model._agenerate(messages)
-        # Extract and return the generated text from the model output
-        return output.generations[0].text.strip()
-    except (asyncio.TimeoutError, openai.error.Timeout, openai.error.RateLimitError) as e:
-        # Uses a dummy text in case of complete failure
-        print(f"ERROR: Could not generate text for an input.")
+    except Exception as e:
+        # returns a dummy text in case of failure
+        print(f"ERROR ({e}): Could not generate text for an input.")
         return 'ERROR'
-
+    
+    # Extract and return the generated text from the model output
+    return output.generations[0].text.strip()
 
 def extract_questions_from_output(output):
     """
