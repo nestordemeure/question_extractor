@@ -131,11 +131,19 @@ def compute_nb_tokens_answer(nb_tokens_text, nb_token_messages):
     Takes information on the size fo the text and messages.
     Returns None if there are not enough tokens left to answer.
     Otherwise returns the number of tokens that can be requested from the model.
+
+    NOTE data gathered on test files:
+    - nb_questions:127
+    - total_question_size:1940 
+    - average question size:15.28
+    - nb_texts:17
+    - total_texts_size:13736
+    - ratio question/text:0.14
     """
     # parameters
-    nb_tokens_single_question= 256 # TODO
-    nb_token_answers_per_token_text = 0 # TODO tokens_answer / tokens_text
-    nb_tokens_padding = 0 # TODO nb_tokens_single_question // 2
+    nb_tokens_single_question= 15.3
+    nb_token_answers_per_token_text = 0.15 # tokens_answer / tokens_text
+    nb_tokens_padding = nb_tokens_single_question / 2
     lower_bound_token_limit = model_token_limit - 16 # we avoid asking for the token limit
     nb_tokens_answer = lower_bound_token_limit - nb_token_messages
     # do we have enough tokens left to answer?
@@ -201,3 +209,27 @@ for file_name, file_path, text in inputs:
 # displays our outputs
 for i,(file_name, file_path, text, question) in enumerate(questions):
     print(f"[{i}] {file_path}: {question}")
+
+#----------------------------------------------------------------------------------------
+# DATA GATHERING
+
+encoding = tiktoken.encoding_for_model(model_type)
+
+nb_questions = len(questions)
+texts = set()
+total_question_size = 0
+for i, (file_name, file_path, text, question) in enumerate(questions):
+    question = f"{i}. {question}"
+    question_size = len(encoding.encode(question))
+    total_question_size += question_size
+    texts.add(text)
+
+nb_texts = len(texts)
+total_texts_size = 0
+for text in texts:
+    text_size = len(encoding.encode(text))
+    total_texts_size += text_size
+
+print(f"nb_questions:{nb_questions} total_question_size:{total_question_size} nb_texts:{nb_texts} total_texts_size:{total_texts_size}")
+print(f"average question size:{total_question_size / nb_questions}")
+print(f"ratio question/text:{total_question_size/total_texts_size}")
