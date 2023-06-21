@@ -1,6 +1,7 @@
 import re
 import asyncio
 import openai
+from token_safety import TokenBucket
 from langchain.chat_models import ChatOpenAI
 from .markdown import load_markdown_files_from_directory, split_markdown
 from .token_counting import count_tokens_text, count_tokens_messages, get_available_tokens, are_tokens_available_for_both_conversations
@@ -14,6 +15,7 @@ model_rate_limits = 1500
 max_concurent_request = int(model_rate_limits * 0.75)
 throttler = asyncio.Semaphore(max_concurent_request)
 
+token_limiter = TokenBucket(1000, 1000)
 
 def flatten_nested_lists(nested_lists):
     """
@@ -52,7 +54,7 @@ async def run_model(messages):
 
     # Create an instance of the ChatOpenAI model with minimum imagination (temperature set to 0)
     model = ChatOpenAI(temperature=0.0, max_tokens=num_tokens_available)
-
+    await token_limiter.consume(num_tokens_in_messages)
     try:
         # Use a semaphore to limit the number of simultaneous calls
         async with throttler:

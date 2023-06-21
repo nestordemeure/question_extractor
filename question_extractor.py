@@ -3,7 +3,7 @@ from pathlib import Path
 from question_extractor import extract_questions_from_directory
 
 # Define the input and output paths
-input_directory = Path('./data/docs')
+input_directory = Path('./data/input')
 output_filepath = Path('./data/questions.json')
 
 # Run the question extraction on the input directory
