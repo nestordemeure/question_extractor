@@ -1,8 +1,10 @@
 import re
+import time
 import asyncio
 import openai
-from token_safety import TokenBucket
+from question_extractor.token_safety import Throttler_token
 from langchain.chat_models import ChatOpenAI
+from contextlib import asynccontextmanager
 from .markdown import load_markdown_files_from_directory, split_markdown
 from .token_counting import count_tokens_text, count_tokens_messages, get_available_tokens, are_tokens_available_for_both_conversations
 from .prompts import create_answering_conversation_messages, create_extraction_conversation_messages
@@ -15,7 +17,16 @@ model_rate_limits = 1500
 max_concurent_request = int(model_rate_limits * 0.75)
 throttler = asyncio.Semaphore(max_concurent_request)
 
-token_limiter = TokenBucket(1000, 1000)
+TOKENS_PER_MINUTE_LIMIT = 80000  # set your desired tokens per minute limit here
+throttler_token = Throttler_token(TOKENS_PER_MINUTE_LIMIT)
+
+@asynccontextmanager
+async def rate_limiter(tokens):
+    """
+    Asynchronously limits the number of tokens per minute.
+    """
+    await throttler_token.acquire(tokens)
+    yield
 
 def flatten_nested_lists(nested_lists):
     """
@@ -54,10 +65,11 @@ async def run_model(messages):
 
     # Create an instance of the ChatOpenAI model with minimum imagination (temperature set to 0)
     model = ChatOpenAI(temperature=0.0, max_tokens=num_tokens_available)
-    await token_limiter.consume(num_tokens_in_messages)
+
     try:
         # Use a semaphore to limit the number of simultaneous calls
-        async with throttler:
+        # Use a semaphore to limit the number of simultaneous calls and a rate limiter to control the tokens per minute
+        async with throttler, rate_limiter(num_tokens_available):
             # Asynchronously run the model on the input messages
             output = await model._agenerate(messages)
     except Exception as e:
@@ -157,7 +169,7 @@ async def generate_answer(question, source):
 #---------------------------------------------------------------------------------------------
 # FILE PROCESSING
 
-async def process_file(file_path, text, progress_counter, verbose=True):
+async def process_file(file_path, text, progress_counter, verbose=True,max_qa_pairs=30):
     """
     Asynchronously processes a file, extracting questions and generating answers concurrently.
     
@@ -172,6 +184,9 @@ async def process_file(file_path, text, progress_counter, verbose=True):
     """
     # Extract questions from the text
     questions = await extract_questions_from_text(file_path, text)
+
+    # Limit the number of questions processed
+    questions = questions[:max_qa_pairs]
 
     # Build and run answering tasks concurrently
     tasks = []

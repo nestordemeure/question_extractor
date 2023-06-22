@@ -1,20 +1,24 @@
+import time
 import asyncio
-class TokenBucket:
-    def __init__(self, rate, capacity):
+
+class Throttler_token:
+    """
+    Throttler class for limiting the number of tokens per minute.
+    """
+    def __init__(self, rate):
         self.rate = rate
-        self.capacity = capacity
-        self._tokens = capacity
-        self._last_refill = asyncio.get_event_loop().time()
+        self.start_time = time.time()
+        self.tokens_consumed = 0
+        self.lock = asyncio.Lock()
 
-    async def consume(self, amount=1):
-        while self._tokens < amount:
-            await self._refill()
-        self._tokens -= amount
-
-    async def _refill(self):
-        now = asyncio.get_event_loop().time()
-        time_delta = now - self._last_refill
-        refill_amount = time_delta * self.rate
-        self._tokens = min(self.capacity, self._tokens + refill_amount)
-        self._last_refill = now
-        await asyncio.sleep(1/self.rate)
+    async def acquire(self, tokens):
+        """
+        Method to acquire tokens and block until the rate limit allows processing.
+        """
+        async with self.lock:
+            elapsed_time = time.time() - self.start_time
+            available_tokens = self.rate * elapsed_time / 60 - self.tokens_consumed
+            sleep_time = max(0, (tokens - available_tokens) * 60 / self.rate)
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
+            self.tokens_consumed += tokens
