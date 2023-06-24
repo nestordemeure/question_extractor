@@ -3,8 +3,7 @@ import json
 from pathlib import Path
 from question_extractor import extract_questions_from_directory
 
-
-os.environ['OPENAI_API_KEY'] = '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'
+os.environ['OPENAI_API_KEY'] = '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'
 
 # Define the input and output paths
 input_directory = Path('./data/input')

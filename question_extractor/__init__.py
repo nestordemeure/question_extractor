@@ -13,11 +13,11 @@ from .prompts import create_answering_conversation_messages, create_extraction_c
 # QUESTION PROCESSING
 
 # Ensure we do not run too many concurent requests
-model_rate_limits = 1500
+model_rate_limits = 3500
 max_concurent_request = int(model_rate_limits * 0.75)
 throttler = asyncio.Semaphore(max_concurent_request)
 
-TOKENS_PER_MINUTE_LIMIT = 80000  # set your desired tokens per minute limit here
+TOKENS_PER_MINUTE_LIMIT = 70000  # set your desired tokens per minute limit here
 throttler_token = Throttler_token(TOKENS_PER_MINUTE_LIMIT)
 
 @asynccontextmanager
