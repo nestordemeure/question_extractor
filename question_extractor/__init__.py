@@ -2,7 +2,7 @@ import re
 import time
 import asyncio
 import openai
-from question_extractor.token_safety import Throttler_token
+from .token_safety import Throttler_token
 from langchain.chat_models import ChatOpenAI
 from contextlib import asynccontextmanager
 from .markdown import load_markdown_files_from_directory, split_markdown
@@ -17,7 +17,7 @@ model_rate_limits = 3500
 max_concurent_request = int(model_rate_limits * 0.75)
 throttler = asyncio.Semaphore(max_concurent_request)
 
-TOKENS_PER_MINUTE_LIMIT = 70000  # set your desired tokens per minute limit here
+TOKENS_PER_MINUTE_LIMIT = (90000 * 0.75) # set your desired tokens per minute limit here
 throttler_token = Throttler_token(TOKENS_PER_MINUTE_LIMIT)
 
 @asynccontextmanager
