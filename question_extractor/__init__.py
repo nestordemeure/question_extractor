@@ -69,7 +69,7 @@ async def run_model(messages):
     try:
         # Use a semaphore to limit the number of simultaneous calls
         # Use a semaphore to limit the number of simultaneous calls and a rate limiter to control the tokens per minute
-        async with throttler, rate_limiter(num_tokens_available):
+        async with throttler:
             # Asynchronously run the model on the input messages
             output = await model._agenerate(messages)
     except Exception as e:
