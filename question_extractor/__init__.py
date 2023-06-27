@@ -4,10 +4,10 @@ import asyncio
 import openai
 from tenacity import (
     retry,
-    stop_after_attempt,
     wait_random_exponential,
 )  
 import openai.error
+from question_extractor import API_KEYS
 from aiolimiter import AsyncLimiter
 from langchain.chat_models import ChatOpenAI
 from contextlib import asynccontextmanager
@@ -15,9 +15,6 @@ from .markdown import load_markdown_files_from_directory, split_markdown
 from .token_counting import count_tokens_text, count_tokens_messages, get_available_tokens, are_tokens_available_for_both_conversations
 from .prompts import create_answering_conversation_messages, create_extraction_conversation_messages
 
-
-API_KEYS = ["API1",
-             "API2"]
 api_key_index = 0
 #---------------------------------------------------------------------------------------------
 # QUESTION PROCESSING
@@ -26,8 +23,6 @@ api_key_index = 0
 model_rate_limits = 3500
 max_concurent_request = int(model_rate_limits * 0.75)
 throttler = asyncio.Semaphore(max_concurent_request)
-tokens_rate_limit = int(90000 * 0.75) 
-
 
 def flatten_nested_lists(nested_lists):
     """
