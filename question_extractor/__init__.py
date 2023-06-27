@@ -7,7 +7,6 @@ from tenacity import (
     wait_random_exponential,
 )  
 import openai.error
-from question_extractor import API_KEYS
 from aiolimiter import AsyncLimiter
 from langchain.chat_models import ChatOpenAI
 from contextlib import asynccontextmanager
@@ -15,7 +14,10 @@ from .markdown import load_markdown_files_from_directory, split_markdown
 from .token_counting import count_tokens_text, count_tokens_messages, get_available_tokens, are_tokens_available_for_both_conversations
 from .prompts import create_answering_conversation_messages, create_extraction_conversation_messages
 
+# replace the "Key" with your own API key, you can provide multiply APIs in the list
+API_KEYS = ["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"]
 api_key_index = 0
+
 #---------------------------------------------------------------------------------------------
 # QUESTION PROCESSING
 
