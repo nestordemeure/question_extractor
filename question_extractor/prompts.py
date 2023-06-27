@@ -6,7 +6,6 @@ from langchain.schema import HumanMessage, SystemMessage
 # prompt used to extract questions
 extraction_system_prompt="You are an expert user extracting information to quiz people on documentation. You will be passed a page extracted from the documentation, write a numbered list of questions that can be answered based *solely* on the given text."
 
-
 def create_extraction_conversation_messages(text):
     """
     Takes a piece of text and returns a list of messages designed to extract questions from the text.
