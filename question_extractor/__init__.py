@@ -15,7 +15,7 @@ from .token_counting import count_tokens_text, count_tokens_messages, get_availa
 from .prompts import create_answering_conversation_messages, create_extraction_conversation_messages
 
 # replace the "Key" with your own API key, you can provide multiply APIs in the list
-API_KEYS = ["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"]
+API_KEYS = ["Key"]
 api_key_index = 0
 
 #---------------------------------------------------------------------------------------------
