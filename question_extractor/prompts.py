@@ -4,8 +4,7 @@ from langchain.schema import HumanMessage, SystemMessage
 # EXTRACTION
 
 # prompt used to extract questions
-extraction_system_prompt="You are an AI trained to extract information from documentation to create an engaging quiz. You will be passed a page extracted from the documentation. Your task is to write a numbered list of questions that can be answered based solely on the given text. Start with broader, general questions about the overall content, and then branch out into more specific questions about the details. This should create a 'tree of thoughts' structure, where each general question has related detailed questions under it."
-
+extraction_system_prompt="You are an expert user extracting information to quiz people on documentation. You will be passed a page extracted from the documentation, write a numbered list of questions that can be answered based *solely* on the given text."
 
 def create_extraction_conversation_messages(text):
     """
@@ -31,8 +30,7 @@ def create_extraction_conversation_messages(text):
 # ANSWERING
 
 # prompt used to answer a question
-answering_system_prompt="You are an AI expert in answering questions. You will be passed a page extracted from a documentation and a question. The questions will be organized in a 'tree of thoughts' manner, with general questions followed by more detailed ones. Your task is to generate a comprehensive and informative answer to the question based solely on the given text. If the question is a detailed one, make sure to provide the specific information asked for, but also consider the broader context of the related general question."
-
+answering_system_prompt="You are an expert user answering questions. You will be passed a page extracted from a documentation and a question. Generate a comprehensive and informative answer to the question based *solely* on the given text."
 
 
 def create_answering_conversation_messages(question, text):

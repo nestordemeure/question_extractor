@@ -179,7 +179,7 @@ async def generate_answer(question, source):
 #---------------------------------------------------------------------------------------------
 # FILE PROCESSING
 
-async def process_file(file_path, text, progress_counter, verbose=True,max_qa_pairs=30):
+async def process_file(file_path, text, progress_counter, verbose=True):
     """
     Asynchronously processes a file, extracting questions and generating answers concurrently.
     
@@ -194,9 +194,6 @@ async def process_file(file_path, text, progress_counter, verbose=True,max_qa_pa
     """
     # Extract questions from the text
     questions = await extract_questions_from_text(file_path, text)
-
-    # Limit the number of questions processed
-    questions = questions[:max_qa_pairs]
 
     # Build and run answering tasks concurrently
     tasks = []
