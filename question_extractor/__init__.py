@@ -1,14 +1,24 @@
 import re
-import time
+import os
 import asyncio
 import openai
-from .token_safety import Throttler_token
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_random_exponential,
+)  
+import openai.error
+from aiolimiter import AsyncLimiter
 from langchain.chat_models import ChatOpenAI
 from contextlib import asynccontextmanager
 from .markdown import load_markdown_files_from_directory, split_markdown
 from .token_counting import count_tokens_text, count_tokens_messages, get_available_tokens, are_tokens_available_for_both_conversations
 from .prompts import create_answering_conversation_messages, create_extraction_conversation_messages
 
+
+API_KEYS = ["API1",
+             "API2"]
+api_key_index = 0
 #---------------------------------------------------------------------------------------------
 # QUESTION PROCESSING
 
@@ -16,17 +26,8 @@ from .prompts import create_answering_conversation_messages, create_extraction_c
 model_rate_limits = 3500
 max_concurent_request = int(model_rate_limits * 0.75)
 throttler = asyncio.Semaphore(max_concurent_request)
+tokens_rate_limit = int(90000 * 0.75) 
 
-TOKENS_PER_MINUTE_LIMIT = (90000 * 0.75) # set your desired tokens per minute limit here
-throttler_token = Throttler_token(TOKENS_PER_MINUTE_LIMIT)
-
-@asynccontextmanager
-async def rate_limiter(tokens):
-    """
-    Asynchronously limits the number of tokens per minute.
-    """
-    await throttler_token.acquire(tokens)
-    yield
 
 def flatten_nested_lists(nested_lists):
     """
@@ -46,8 +47,10 @@ def flatten_nested_lists(nested_lists):
 
     return flattened_list
 
-
-async def run_model(messages):
+@retry(
+    wait=wait_random_exponential(min=10, max=30),
+)
+async def run_model(messages,api_key):
     """
     Asynchronously runs the chat model with as many tokens as possible on the given messages.
     
@@ -57,6 +60,7 @@ async def run_model(messages):
     Returns:
         str: The model-generated output text after processing the input messages.
     """
+    os.environ['OPENAI_API_KEY'] = api_key
     # Count the number of tokens in the input messages
     num_tokens_in_messages = count_tokens_messages(messages)
 
@@ -68,12 +72,13 @@ async def run_model(messages):
 
     try:
         # Use a semaphore to limit the number of simultaneous calls
-        # Use a semaphore to limit the number of simultaneous calls and a rate limiter to control the tokens per minute
         async with throttler:
             # Asynchronously run the model on the input messages
             output = await model._agenerate(messages)
+    except openai.error.RateLimitError as e:
+        print(f"ERROR ({e}): Rate limit exceeded, retrying.")
+        raise  # Re-raise the exception to allow tenacity to handle the retry
     except Exception as e:
-        # returns a dummy text in case of failure
         print(f"ERROR ({e}): Could not generate text for an input.")
         return 'ERROR'
     
@@ -117,6 +122,7 @@ async def extract_questions_from_text(file_path, text):
         list of tuple: A list of tuples, each containing the file path, text, and extracted question.
     """
     # Ensure the text can be processed by the model
+    global api_key_index
     text = text.strip()
     num_tokens_text = count_tokens_text(text)
 
@@ -139,7 +145,9 @@ async def extract_questions_from_text(file_path, text):
     else:
         # Run the model to extract questions
         messages = create_extraction_conversation_messages(text)
-        output = await run_model(messages)
+        api_key = API_KEYS[api_key_index]
+        api_key_index = (api_key_index + 1) % len(API_KEYS)
+        output = await run_model(messages,api_key)
         questions = extract_questions_from_output(output)
 
         # Associate questions with source information and return as a list of tuples
@@ -159,10 +167,12 @@ async def generate_answer(question, source):
         str: The generated answer to the question.
     """
     # Create the input messages for the chat model
+    global api_key_index
     messages = create_answering_conversation_messages(question, source)
-
+    api_key = API_KEYS[api_key_index]
+    api_key_index = (api_key_index + 1) % len(API_KEYS)
     # Asynchronously run the chat model with the input messages
-    answer = await run_model(messages)
+    answer = await run_model(messages,api_key)
 
     return answer
 
