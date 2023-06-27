@@ -6,7 +6,7 @@ from question_extractor import extract_questions_from_directory
 input_directory = Path('./data/docs')
 output_filepath = Path('./data/questions.json')
 
-# Before running the code, one must replace the "API_KEY" in question_extractor/_init__.py with his own API key
+# Before running the code, one must replace the "API_KEY" in question_extractor/__init__.py with his own API key
 
 # Run the question extraction on the input directory
 extracted_questions = extract_questions_from_directory(input_directory)
