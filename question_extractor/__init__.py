@@ -7,6 +7,7 @@ from tenacity import (
     wait_random_exponential,
 )  
 import openai.error
+from asyncio import sleep
 from aiolimiter import AsyncLimiter
 from langchain.chat_models import ChatOpenAI
 from contextlib import asynccontextmanager
@@ -15,16 +16,18 @@ from .token_counting import count_tokens_text, count_tokens_messages, get_availa
 from .prompts import create_answering_conversation_messages, create_extraction_conversation_messages
 
 # replace the "Key" with your own API key, you can provide multiply APIs in the list
-API_KEYS = ["Key"]
+API_KEYS = ["Key1"，"Key2"]
+api_key_lock = asyncio.Lock()
 api_key_index = 0
-
+TASK_START_DELAY = 0.5 
 #---------------------------------------------------------------------------------------------
 # QUESTION PROCESSING
 
 # Ensure we do not run too many concurent requests
-model_rate_limits = 3500
+model_rate_limits = 2000
 max_concurent_request = int(model_rate_limits * 0.75)
 throttler = asyncio.Semaphore(max_concurent_request)
+
 
 def flatten_nested_lists(nested_lists):
     """
@@ -45,9 +48,9 @@ def flatten_nested_lists(nested_lists):
     return flattened_list
 
 @retry(
-    wait=wait_random_exponential(min=10, max=30),
+    wait=wait_random_exponential(min=15, max=40),
 )
-async def run_model(messages,api_key):
+async def run_model(messages):
     """
     Asynchronously runs the chat model with as many tokens as possible on the given messages.
     
@@ -57,7 +60,10 @@ async def run_model(messages,api_key):
     Returns:
         str: The model-generated output text after processing the input messages.
     """
-    os.environ['OPENAI_API_KEY'] = api_key
+    async with api_key_lock:  # Ensure that the rotation is thread-safe
+        global api_key_index
+        os.environ['OPENAI_API_KEY'] = API_KEYS[api_key_index]
+        api_key_index = (api_key_index + 1) % len(API_KEYS)
     # Count the number of tokens in the input messages
     num_tokens_in_messages = count_tokens_messages(messages)
 
@@ -74,6 +80,9 @@ async def run_model(messages,api_key):
             output = await model._agenerate(messages)
     except openai.error.RateLimitError as e:
         print(f"ERROR ({e}): Rate limit exceeded, retrying.")
+        raise  # Re-raise the exception to allow tenacity to handle the retry
+    except openai.error.APIConnectionError as e:
+        print(f"ERROR ({e}): Could not connect, retrying.")
         raise  # Re-raise the exception to allow tenacity to handle the retry
     except Exception as e:
         print(f"ERROR ({e}): Could not generate text for an input.")
@@ -142,9 +151,7 @@ async def extract_questions_from_text(file_path, text):
     else:
         # Run the model to extract questions
         messages = create_extraction_conversation_messages(text)
-        api_key = API_KEYS[api_key_index]
-        api_key_index = (api_key_index + 1) % len(API_KEYS)
-        output = await run_model(messages,api_key)
+        output = await run_model(messages)
         questions = extract_questions_from_output(output)
 
         # Associate questions with source information and return as a list of tuples
@@ -164,19 +171,16 @@ async def generate_answer(question, source):
         str: The generated answer to the question.
     """
     # Create the input messages for the chat model
-    global api_key_index
     messages = create_answering_conversation_messages(question, source)
-    api_key = API_KEYS[api_key_index]
-    api_key_index = (api_key_index + 1) % len(API_KEYS)
     # Asynchronously run the chat model with the input messages
-    answer = await run_model(messages,api_key)
+    answer = await run_model(messages)
 
     return answer
 
 #---------------------------------------------------------------------------------------------
 # FILE PROCESSING
 
-async def process_file(file_path, text, progress_counter, verbose=True):
+async def process_file(file_path, text, progress_counter, verbose=True,max_qa_pairs=300):
     """
     Asynchronously processes a file, extracting questions and generating answers concurrently.
     
@@ -191,6 +195,9 @@ async def process_file(file_path, text, progress_counter, verbose=True):
     """
     # Extract questions from the text
     questions = await extract_questions_from_text(file_path, text)
+
+    # Limit the number of questions processed
+    questions = questions[:max_qa_pairs]
 
     # Build and run answering tasks concurrently
     tasks = []
@@ -230,15 +237,24 @@ async def process_files(files, verbose=True):
     if verbose: print(f"Starting question extraction on {nb_files} files.")
 
     # Build and run tasks for each file concurrently
-    tasks = []
-    for file_path, text in files:
-        task = process_file(file_path, text, progress_counter, verbose=verbose)
-        tasks.append(task)
+# Create a list to hold the results
+    results = []
 
-    tasks_outputs = await asyncio.gather(*tasks)
+    # Create tasks for each file
+    tasks = [process_file(file_path, text, progress_counter, verbose=verbose) for file_path, text in files]
 
-    # Merge results from all tasks
-    return flatten_nested_lists(tasks_outputs)
+    # Run tasks, introducing a delay between starting each one
+    for task in asyncio.as_completed(tasks):
+        # Await the result of the task
+        result = await task
+
+        # Add the result to the results list
+        results.extend(result)
+
+        # Introduce a delay before starting the next task
+        await sleep(TASK_START_DELAY)
+
+    return results
 
 #---------------------------------------------------------------------------------------------
 # MAIN
