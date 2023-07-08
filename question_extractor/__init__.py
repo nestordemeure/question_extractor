@@ -237,24 +237,15 @@ async def process_files(files, verbose=True):
     if verbose: print(f"Starting question extraction on {nb_files} files.")
 
     # Build and run tasks for each file concurrently
-# Create a list to hold the results
-    results = []
+    tasks = []
+    for file_path, text in files:
+        task = process_file(file_path, text, progress_counter, verbose=verbose)
+        tasks.append(task)
 
-    # Create tasks for each file
-    tasks = [process_file(file_path, text, progress_counter, verbose=verbose) for file_path, text in files]
+    tasks_outputs = await asyncio.gather(*tasks)
 
-    # Run tasks, introducing a delay between starting each one
-    for task in asyncio.as_completed(tasks):
-        # Await the result of the task
-        result = await task
-
-        # Add the result to the results list
-        results.extend(result)
-
-        # Introduce a delay before starting the next task
-        await sleep(TASK_START_DELAY)
-
-    return results
+    # Merge results from all tasks
+    return flatten_nested_lists(tasks_outputs)
 
 #---------------------------------------------------------------------------------------------
 # MAIN
