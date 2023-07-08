@@ -7,7 +7,6 @@ from tenacity import (
     wait_random_exponential,
 )  
 import openai.error
-from asyncio import sleep
 from aiolimiter import AsyncLimiter
 from langchain.chat_models import ChatOpenAI
 from contextlib import asynccontextmanager
@@ -19,7 +18,6 @@ from .prompts import create_answering_conversation_messages, create_extraction_c
 API_KEYS = ["Key1"，"Key2"]
 api_key_lock = asyncio.Lock()
 api_key_index = 0
-TASK_START_DELAY = 0.5 
 #---------------------------------------------------------------------------------------------
 # QUESTION PROCESSING
 
