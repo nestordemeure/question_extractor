@@ -191,24 +191,40 @@ async def process_file(file_path, text, progress_counter, verbose=True,max_qa_pa
     Returns:
         list: A list of dictionaries containing source, question, and answer information.
     """
-    # Extract questions from the text
-    questions = await extract_questions_from_text(file_path, text)
+    questions_file_name = f"{file_path}.json"
+    if Path(questions_file_name).is_file():
+        with open(questions_file_name, 'r') as input_file:
+            questions = json.loads(input_file.read())
+    else:
+        # Extract questions from the text
+        questions = await extract_questions_from_text(file_path, text)
 
-    # Limit the number of questions processed
-    questions = questions[:max_qa_pairs]
+        # Limit the number of questions processed
+        questions = questions[:max_qa_pairs]
 
-    # Build and run answering tasks concurrently
-    tasks = []
-    for sub_file_path, sub_text, question in questions:
-        task = generate_answer(question, sub_text)
-        tasks.append(task)
+        with open(questions_file_name, 'w') as output_file:
+            json.dump(questions, output_file, indent=2)
 
-    tasks_outputs = await asyncio.gather(*tasks)
-
-    # Merge results into a list of dictionaries
+    results_filename = f"{file_path}.result.json"
     result = []
-    for (sub_file_path, sub_text, question), answer in zip(questions, tasks_outputs):
-        result.append({'source': sub_file_path, 'question': question, 'answer': answer})
+    if Path(results_filename).is_file():
+        with open(results_filename, 'r') as input_file2:
+            result = json.loads(input_file2.read())
+    else:
+        # Build and run answering tasks concurrently
+        tasks = []
+        for sub_file_path, sub_text, question in questions:
+            task = generate_answer(question, sub_text)
+            tasks.append(task)
+
+        tasks_outputs = await asyncio.gather(*tasks)
+
+        # Merge results into a list of dictionaries
+        for (sub_file_path, sub_text, question), answer in zip(questions, tasks_outputs):
+            result.append({'source': sub_file_path, 'question': question, 'answer': answer})
+
+        with open(results_filename, 'w') as output_file:
+            json.dump(result, output_file, indent=2)
 
     # Update progress and display information if verbose is True
     progress_counter['nb_files_done'] += 1  # No race condition as we are single-threaded
