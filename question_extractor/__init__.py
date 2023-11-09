@@ -205,7 +205,7 @@ async def process_file(file_path, text, progress_counter, verbose=True,max_qa_pa
         with open(questions_file_name, 'w') as output_file:
             json.dump(questions, output_file, indent=2)
 
-    results_filename = f"{file_path}_result.json"
+    results_filename = f"{file_path}.result.json"
     result = []
     if Path(results_filename).is_file():
         with open(results_filename, 'r') as input_file2:
