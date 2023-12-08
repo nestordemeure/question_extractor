@@ -49,7 +49,7 @@ def find_highest_markdown_heading_level(lines):
     for line in lines:
     
         """
-        Check code section e.g.:
+        Check code section ie:
             ```bash
             # Trace an IP packet between two Pods
             antctl trace-packet -S ns1/pod1 -D ns2/pod2
