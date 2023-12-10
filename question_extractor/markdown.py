@@ -43,12 +43,35 @@ def find_highest_markdown_heading_level(lines):
         int or None: The highest heading level as an integer, or None if no headings are found.
     """
     highest_heading_level = None
+    code_section = False
 
     # Iterate through the lines in the markdown file
     for line in lines:
-        
+    
+        """
+        Check code section e.g.:
+            ```bash
+            # Trace an IP packet between two Pods
+            antctl trace-packet -S ns1/pod1 -D ns2/pod2
+            # Trace a Service request from a local Pod
+            antctl trace-packet -S ns1/pod1 -D ns2/svc2 -f "tcp,tcp_dst=80"
+            # Trace the Service reply packet (assuming "ns2/pod2" is the Service backend Pod)
+            antctl trace-packet -D ns1/pod1 -S ns2/pod2 -f "tcp,tcp_src=80"
+            # Trace an IP packet from a Pod to gateway port
+            antctl trace-packet -S ns1/pod1 -D antrea-gw0
+            # Trace a UDP packet from a Pod to an IP address
+            antctl trace-packet -S ns1/pod1 -D 10.1.2.3 -f udp,udp_dst=1234
+            # Trace a UDP packet from an IP address to a Pod
+            antctl trace-packet -D ns1/pod1 -S 10.1.2.3 -f udp,udp_src=1234
+            # Trace an ARP request from a local Pod
+            antctl trace-packet -p ns1/pod1 -f arp,arp_spa=10.1.2.3,arp_sha=00:11:22:33:44:55,arp_tpa=10.1.2.1,dl_dst=ff:ff:ff:ff:ff:ff
+            ```
+        Here # is a code comment not the md level symbole
+        """
+        if line.startswith("```"):
+            code_section = not code_section
         # Check if the line starts with a heading
-        if line.startswith("#"):
+        if line.startswith("#") and not code_section:
             
             # Calculate the heading level based on the number of '#' characters
             current_heading_level = len(line.split()[0])
